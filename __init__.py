@@ -1,0 +1,282 @@
+#  jack_connection_manager/__init__.py
+#
+#  Copyright 2025 liyang <liyang@veronica>
+#
+"""
+Classes for managing jack client connections.
+
+These differ from the JACK Client for Python (jack), in that it makes possible
+connecting and disconnecting ports which are not "owned" by a client created in
+your process.
+
+Utilizes "jacklib" for port access.
+"""
+import logging
+from functools import cached_property
+from queue import Queue
+import jacklib
+from jacklib.helpers import c_char_p_p_to_list
+from jacklib.helpers import get_jack_status_error_string
+from PyQt5.QtCore import QObject, pyqtSignal
+
+
+class JackPort:
+
+	def __init__(self, ptr, name):
+		self.ptr = ptr
+		self.name = name
+
+	@cached_property
+	def aliases(self):
+		num_aliases, *aliases = jacklib.port_get_aliases(self.ptr)
+		return list(aliases[:num_aliases])
+
+	@cached_property
+	def flags(self):
+		return jacklib.port_flags(self.ptr)
+
+	@cached_property
+	def is_physical(self):
+		return self.flags & jacklib.JackPortIsPhysical
+
+	@cached_property
+	def is_input(self):
+		return self.flags & jacklib.JackPortIsInput
+
+	@cached_property
+	def is_output(self):
+		return self.flags & jacklib.JackPortIsOutput
+
+	@property
+	def client_name(self):
+		return self._split_name[0]
+
+	@property
+	def port_name(self):
+		return self._split_name[1]
+
+	@cached_property
+	def type(self):
+		return jacklib.port_type(self.ptr)
+
+	@property
+	def is_midi(self):
+		return 'midi' in self.type
+
+	@property
+	def is_audio(self):
+		return 'audio' in self.type
+
+	@cached_property
+	def _split_name(self):
+		try:
+			return self.name.split(':', 1)
+		except ValueError:
+			return ('[error]', '[error]')
+
+	def __str__(self):
+		return '<JackPort "{}" ({}, {})>'.format(
+			self.name,
+			'physical' if self.is_physical else 'plugin',
+			'input'if self.is_input else 'output'
+		)
+
+
+class JackConnectError(RuntimeError):
+	pass
+
+
+class _JackConnectionManager():
+
+	client = None
+
+	def __init__(self, client_name = 'conn-man'):
+		status = jacklib.jack_status_t()
+		self.client = jacklib.client_open(client_name, jacklib.JackNoStartServer, status)
+		if status.value:
+			raise JackConnectError(get_jack_status_error_string(status))
+		if not self.client:
+			raise JackConnectError('No client created')
+		name = jacklib.get_client_name(self.client)
+		if name is None:
+			raise RuntimeError("Could not get JACK client name.")
+		self.client_name = name.decode()
+		self.queue = Queue()
+		self.xruns = 0
+		jacklib.set_error_function(self._error_callback)
+		jacklib.set_port_registration_callback(self.client, self._port_registration_callback, None)
+		jacklib.set_port_connect_callback(self.client, self._port_connect_callback, None)
+		jacklib.set_port_rename_callback(self.client, self._port_rename_callback, None)
+		jacklib.set_xrun_callback(self.client, self._xrun_callback, None)
+		jacklib.on_shutdown(self.client, self._shutdown_callback, None)
+		jacklib.activate(self.client)
+
+	def close(self):
+		if self.client:
+			jacklib.deactivate(self.client)
+			jacklib.client_close(self.client)
+
+	# ------------------------------
+	# Internal callback functions
+
+	# ------------------------------
+	# Port / connection info funcs
+
+	def get_ports(self, flags = 0):
+		return [
+			self.get_port_by_name(name) \
+			for name in c_char_p_p_to_list(
+				jacklib.get_ports(self.client, '', '', flags))
+		]
+
+	def get_port_by_name(self, name):
+		ptr = jacklib.port_by_name(self.client, name)
+		return JackPort(ptr, name)
+
+	def get_port_by_id(self, port_id):
+		ptr = jacklib.port_by_id(self.client, port_id)
+		return JackPort(ptr, jacklib.port_name(ptr))
+
+	def get_connections(self, ports = None):
+		if ports is None:
+			ports = self.get_ports()
+		for port in ports:
+			if jacklib.port_connected(port.ptr):
+				for port_name in jacklib.port_get_all_connections(self.client, port.ptr):
+					yield((port, self.get_port_by_name(port_name)))
+
+	def list_connections(self):
+		print('==== CONNECTIONS ====')
+		for outport, inport in self.get_connections():
+			print("%s\n    %s" % (outport, inport))
+
+	def list_ports(self):
+		print('==== INPUT PORTS ====')
+		self._list_ports(jacklib.JackPortIsInput)
+		print('==== OUTPUT PORTS ====')
+		self._list_ports(jacklib.JackPortIsOutput)
+
+	def _list_ports(self, flags):
+		for port in self.get_ports(flags):
+			print(port.name, end = "")
+			if port.aliases:
+				print('; alias "' + '", "'.join(port.aliases) + '"', end = '')
+			print()
+
+	def physical_input_ports(self):
+		return self.get_ports(jacklib.JackPortIsInput | jacklib.JackPortIsPhysical)
+
+	def physical_output_ports(self):
+		return self.get_ports(jacklib.JackPortIsOutput | jacklib.JackPortIsPhysical)
+
+	def playback_clients(self):
+		return list(set([port.client_name \
+			for port in self.get_ports(jacklib.JackPortIsInput | jacklib.JackPortIsPhysical) \
+			if not port.is_midi]))
+
+	def connect(self, outport, inport):
+		jacklib.connect(self.client, outport.name, inport.name)
+
+
+class JackConnectionManager(_JackConnectionManager):
+
+	# ------------------------------
+	# Callbacks
+
+	_cb_error= None
+	_cb_port_registration = None
+	_cb_port_connect = None
+	_cb_port_rename = None
+	_cb_xrun = None
+	_cb_shutdown = None
+
+	def on_error(self, callback):
+		"""
+		Sets the function to call when there is an error.
+		The given callback must have the following signature:
+		<callback>(error_message: str)
+		Note: by default, errors are logged using the "logging" module.
+		"""
+		self._cb_error = callback
+
+	def on_port_registration(self, callback):
+		"""
+		Sets the function to call when a new port is registered / unregistered.
+		The given callback must have the following signature:
+		<callback>(port: JackPort, action: bool)
+		"action" will be True on register, False on unregister.
+		"""
+		self._cb_port_registration = callback
+
+	def on_port_connect(self, callback):
+		"""
+		Sets the function to call when two ports are connected / disconnected.
+		The given callback must have the following signature:
+		<callback>(port_a: JackPort, port_b: JackPort, action: bool)
+		"action" will be True on connect, False on disconnect.
+		"""
+		self._cb_port_connect = callback
+
+	def on_port_rename(self, callback):
+		"""
+		Sets the function to call when a port is renamed.
+		The given callback must have the following signature:
+		<callback>(port: JackPort, old_name: str, new_name: str)
+		"""
+		self._cb_port_rename = callback
+
+	def on_xrun(self, callback):
+		"""
+		Sets the function to call when there is an xrun.
+		The given callback must have the following signature:
+		<callback>(xruns: int)
+		"""
+		self._cb_xrun = callback
+
+	def on_shutdown(self, callback):
+		"""
+		Sets the function to call when jack shuts down.
+		The given callback must have the following signature:
+		<callback>()
+		"""
+		self._cb_shutdown = callback
+
+	def _error_callback(self, error):
+		error_message = error.decode(jacklib.ENCODING, errors='ignore')
+		if self._cb_error is None:
+			logging.error(error_message)
+		else:
+			self._cb_error(error_message)
+
+	def _port_registration_callback(self, port_id, action, *args):
+		if self._cb_port_registration is not None:
+			self._cb_port_registration(self.get_port_by_id(port_id), action)
+
+	def _port_connect_callback(self, port_a_id, port_b_id, connect, *args):
+		if self._cb_port_connect is not None:
+			self._cb_port_connect(
+				self.get_port_by_id(port_a_id),
+				self.get_port_by_id(port_b_id),
+				bool(connect)
+			)
+
+	def _port_rename_callback(self, port_id, old_name, new_name, *args):
+		if self._cb_port_rename is not None:
+			self._cb_port_rename(
+				self.get_port_by_id(port_id),
+				old_name.decode(jacklib.ENCODING, errors='ignore') if old_name else 'NO_OLD_NAME',
+				new_name.decode(jacklib.ENCODING, errors='ignore') if new_name else 'NO_NEW_NAME'
+			)
+
+	def _xrun_callback(self, arg):
+		self.xruns += 1
+		if self._cb_xrun is not None:
+			self._cb_xrun(self.xruns)
+		return 0
+
+	def _shutdown_callback(self, *args):
+		if self._cb_shutdown is not None:
+			self._cb_shutdown()
+
+
+#  end kitbash/connection_manager.py
