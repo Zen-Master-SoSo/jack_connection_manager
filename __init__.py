@@ -104,6 +104,7 @@ class _JackConnectionManager():
 		self.queue = Queue()
 		self.xruns = 0
 		jacklib.set_error_function(self._error_callback)
+		jacklib.set_client_registration_callback(self.client, self._client_registration_callback, None)
 		jacklib.set_port_registration_callback(self.client, self._port_registration_callback, None)
 		jacklib.set_port_connect_callback(self.client, self._port_connect_callback, None)
 		jacklib.set_port_rename_callback(self.client, self._port_rename_callback, None)
@@ -184,6 +185,7 @@ class JackConnectionManager(_JackConnectionManager):
 	# Callbacks
 
 	_cb_error= None
+	_cb_client_registration = None
 	_cb_port_registration = None
 	_cb_port_connect = None
 	_cb_port_rename = None
@@ -198,6 +200,15 @@ class JackConnectionManager(_JackConnectionManager):
 		Note: by default, errors are logged using the "logging" module.
 		"""
 		self._cb_error = callback
+
+	def on_client_registration(self, callback):
+		"""
+		Sets the function to call when a new client is registered / unregistered.
+		The given callback must have the following signature:
+		<callback>(client_name: str, action: bool)
+		"action" will be True on register, False on unregister.
+		"""
+		self._cb_client_registration = callback
 
 	def on_port_registration(self, callback):
 		"""
@@ -247,6 +258,10 @@ class JackConnectionManager(_JackConnectionManager):
 			logging.error(error_message)
 		else:
 			self._cb_error(error_message)
+
+	def _client_registration_callback(self, client_name, action, *args):
+		if self._cb_client_registration is not None:
+			self._cb_client_registration(client_name.decode(jacklib.ENCODING, errors='ignore'), action)
 
 	def _port_registration_callback(self, port_id, action, *args):
 		if self._cb_port_registration is not None:

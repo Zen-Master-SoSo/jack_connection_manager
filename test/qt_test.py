@@ -18,7 +18,7 @@ class MainWindow(QMainWindow):
 
 	def __init__(self):
 		super().__init__()
-		self.setMinimumWidth(500)
+		self.setMinimumWidth(800)
 		shortcut = QShortcut(QKeySequence('Ctrl+Q'), self)
 		shortcut.activated.connect(self.close)
 		shortcut = QShortcut(QKeySequence('Esc'), self)
@@ -28,6 +28,7 @@ class MainWindow(QMainWindow):
 		self.setCentralWidget(self.text_box)
 		self.conn_man = QtJackConnectionManager()
 		self.conn_man.sig_error.connect(self.slot_error)
+		self.conn_man.sig_client_registration.connect(self.slot_client_registration)
 		self.conn_man.sig_port_registration.connect(self.slot_port_registration)
 		self.conn_man.sig_port_connect.connect(self.slot_port_connect)
 		self.conn_man.sig_port_rename.connect(self.slot_port_rename)
@@ -36,6 +37,10 @@ class MainWindow(QMainWindow):
 	@pyqtSlot()
 	def slot_error(self, error):
 		self.text_box.insertPlainText(error)
+
+	@pyqtSlot(str, int)
+	def slot_client_registration(self, client_name, action):
+		self.text_box.insertPlainText('Client "%s" %s\n' % (client_name, 'register' if action else 'gone'))
 
 	@pyqtSlot(JackPort, int)
 	def slot_port_registration(self, port, action):

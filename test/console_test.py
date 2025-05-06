@@ -14,6 +14,11 @@ def on_error(error_message):
 	print(f'ERROR: {error_message}')
 
 
+def on_client_registration(client_name, action):
+	action = 'REGISTERED' if action else 'GONE'
+	print(f'Client "{client_name}": {action}')
+
+
 def on_port_registration(port, action):
 	action = 'REGISTERED' if action else 'GONE'
 	print(f'{port}: {action}')
@@ -50,6 +55,7 @@ def main():
 		return 1
 
 	conn_man.on_error(on_error)
+	conn_man.on_client_registration(on_client_registration)
 	conn_man.on_port_registration(on_port_registration)
 	conn_man.on_port_connect(on_port_connect)
 	conn_man.on_port_rename(on_port_rename)
