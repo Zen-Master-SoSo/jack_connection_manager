@@ -18,6 +18,7 @@ import jacklib
 from jacklib.helpers import c_char_p_p_to_list
 from jacklib.helpers import get_jack_status_error_string
 from PyQt5.QtCore import QObject, pyqtSignal
+from good_logging import log_error
 
 
 class JackPort:
@@ -257,41 +258,62 @@ class JackConnectionManager(_JackConnectionManager):
 		if self._cb_error is None:
 			logging.error(error_message)
 		else:
-			self._cb_error(error_message)
+			try:
+				self._cb_error(error_message)
+			except Exception as e:
+				log_error(e)
 
 	def _client_registration_callback(self, client_name, action, *args):
 		if self._cb_client_registration is not None:
-			self._cb_client_registration(client_name.decode(jacklib.ENCODING, errors='ignore'), action)
+			try:
+				self._cb_client_registration(client_name.decode(jacklib.ENCODING, errors='ignore'), action)
+			except Exception as e:
+				log_error(e)
 
 	def _port_registration_callback(self, port_id, action, *args):
 		if self._cb_port_registration is not None:
-			self._cb_port_registration(self.get_port_by_id(port_id), action)
+			try:
+				self._cb_port_registration(self.get_port_by_id(port_id), action)
+			except Exception as e:
+				log_error(e)
 
 	def _port_connect_callback(self, port_a_id, port_b_id, connect, *args):
 		if self._cb_port_connect is not None:
-			self._cb_port_connect(
-				self.get_port_by_id(port_a_id),
-				self.get_port_by_id(port_b_id),
-				bool(connect)
-			)
+			try:
+				self._cb_port_connect(
+					self.get_port_by_id(port_a_id),
+					self.get_port_by_id(port_b_id),
+					bool(connect)
+				)
+			except Exception as e:
+				log_error(e)
 
 	def _port_rename_callback(self, port_id, old_name, new_name, *args):
 		if self._cb_port_rename is not None:
-			self._cb_port_rename(
-				self.get_port_by_id(port_id),
-				old_name.decode(jacklib.ENCODING, errors='ignore') if old_name else 'NO_OLD_NAME',
-				new_name.decode(jacklib.ENCODING, errors='ignore') if new_name else 'NO_NEW_NAME'
-			)
+			try:
+				self._cb_port_rename(
+					self.get_port_by_id(port_id),
+					old_name.decode(jacklib.ENCODING, errors='ignore') if old_name else 'NO_OLD_NAME',
+					new_name.decode(jacklib.ENCODING, errors='ignore') if new_name else 'NO_NEW_NAME'
+				)
+			except Exception as e:
+				log_error(e)
 
 	def _xrun_callback(self, arg):
 		self.xruns += 1
 		if self._cb_xrun is not None:
-			self._cb_xrun(self.xruns)
+			try:
+				self._cb_xrun(self.xruns)
+			except Exception as e:
+				log_error(e)
 		return 0
 
 	def _shutdown_callback(self, *args):
 		if self._cb_shutdown is not None:
-			self._cb_shutdown()
+			try:
+				self._cb_shutdown()
+			except Exception as e:
+				log_error(e)
 
 
 #  end kitbash/connection_manager.py

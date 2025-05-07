@@ -6,7 +6,6 @@
 Test to be run from the console, testing the non-Qt JackConnectionManager
 """
 import sys, logging
-from jack import JackError
 from jack_connection_manager import JackConnectionManager, JackConnectError
 
 
