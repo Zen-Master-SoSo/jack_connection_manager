@@ -76,6 +76,9 @@ class JackPort:
 			return ('[error]', '[error]')
 
 	def __str__(self):
+		return self.name
+
+	def __repr__(self):
 		return '<JackPort "{}" ({}, {})>'.format(
 			self.name,
 			'physical' if self.is_physical else 'plugin',
@@ -125,6 +128,18 @@ class _JackConnectionManager():
 	# Port / connection info funcs
 
 	def get_ports(self, flags = 0):
+		"""
+		Returns a list of JackPort objects which match the given flags (if any).
+		The available flags from jacklib/api.py:
+
+			JackPortIsInput = 0x1
+			JackPortIsOutput = 0x2
+			JackPortIsPhysical = 0x4
+			JackPortCanMonitor = 0x8
+			JackPortIsTerminal = 0x10
+			JackPortIsControlVoltage = 0x100
+
+		"""
 		return [
 			self.get_port_by_name(name) \
 			for name in c_char_p_p_to_list(
@@ -132,14 +147,32 @@ class _JackConnectionManager():
 		]
 
 	def get_port_by_name(self, name):
+		"""
+		Returns JackPort object.
+		"""
 		ptr = jacklib.port_by_name(self.client, name)
 		return JackPort(ptr, name)
 
 	def get_port_by_id(self, port_id):
+		"""
+		Returns JackPort object.
+		"""
 		ptr = jacklib.port_by_id(self.client, port_id)
 		return JackPort(ptr, jacklib.port_name(ptr))
 
+	def get_port_connections(self, port):
+		"""
+		Returns a list of JackPort objects.
+		"""
+		return [ self.get_port_by_name(port_name) \
+			for port_name in jacklib.port_get_all_connections(self.client, port.ptr) ] \
+			if jacklib.port_connected(port.ptr) \
+			else []
+
 	def get_connections(self, ports = None):
+		"""
+		Generator which yields tuples of JackPort, JackPort.
+		"""
 		if ports is None:
 			ports = self.get_ports()
 		for port in ports:
@@ -147,37 +180,70 @@ class _JackConnectionManager():
 				for port_name in jacklib.port_get_all_connections(self.client, port.ptr):
 					yield((port, self.get_port_by_name(port_name)))
 
-	def list_connections(self):
-		print('==== CONNECTIONS ====')
-		for outport, inport in self.get_connections():
-			print("%s\n    %s" % (outport, inport))
+	def input_ports(self):
+		"""
+		Returns a list of JackPort objects.
+		"""
+		return self.get_ports(jacklib.JackPortIsInput)
 
-	def list_ports(self):
-		print('==== INPUT PORTS ====')
-		self._list_ports(jacklib.JackPortIsInput)
-		print('==== OUTPUT PORTS ====')
-		self._list_ports(jacklib.JackPortIsOutput)
-
-	def _list_ports(self, flags):
-		for port in self.get_ports(flags):
-			print(port.name, end = "")
-			if port.aliases:
-				print('; alias "' + '", "'.join(port.aliases) + '"', end = '')
-			print()
+	def output_ports(self):
+		"""
+		Returns a list of JackPort objects.
+		"""
+		return self.get_ports(jacklib.JackPortIsOutput)
 
 	def physical_input_ports(self):
+		"""
+		Returns a list of JackPort objects.
+		"""
 		return self.get_ports(jacklib.JackPortIsInput | jacklib.JackPortIsPhysical)
 
 	def physical_output_ports(self):
+		"""
+		Returns a list of JackPort objects.
+		"""
 		return self.get_ports(jacklib.JackPortIsOutput | jacklib.JackPortIsPhysical)
 
-	def playback_clients(self):
-		return list(set([port.client_name \
+	def physical_playback_clients(self):
+		"""
+		Returns a list of (str) client names.
+		"""
+		return list(set(port.client_name \
 			for port in self.get_ports(jacklib.JackPortIsInput | jacklib.JackPortIsPhysical) \
-			if not port.is_midi]))
+			if not port.is_midi))
 
-	def connect(self, outport, inport):
+	def first_physical_playback_client(self):
+		"""
+		Returns (str) client name.
+		"""
+		for port in self.get_ports(jacklib.JackPortIsInput | jacklib.JackPortIsPhysical):
+			if not port.is_midi:
+				return port.client_name
+
+	def connect(self, outport: JackPort, inport: JackPort):
+		"""
+		Connect the given JackPort to the given JackPort
+		"""
 		jacklib.connect(self.client, outport.name, inport.name)
+
+	def connect_by_name(self, outport: str, inport: str):
+		"""
+		Connect the ports identified by their name.
+		"""
+		jacklib.connect(self.client, outport, inport)
+
+	def disconnect(self, outport: JackPort, inport: JackPort):
+		"""
+		Disconnect the given JackPort to the given JackPort
+		"""
+		jacklib.disconnect(self.client, outport.name, inport.name)
+
+	def disconnect_by_name(self, outport: str, inport: str):
+		"""
+		Disconnect the ports identified by their name.
+		"""
+		jacklib.disconnect(self.client, outport, inport)
+
 
 
 class JackConnectionManager(_JackConnectionManager):

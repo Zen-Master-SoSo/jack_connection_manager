@@ -40,6 +40,12 @@ def on_shutdown():
 	print('JACK is shutting down')
 
 
+def list_ports(ports):
+	for port in ports:
+		print(port.name + '; alias "' + '", "'.join(port.aliases) + '"') \
+			if port.aliases \
+			else port.name
+
 def main():
 
 	logging.basicConfig(
@@ -60,6 +66,20 @@ def main():
 	conn_man.on_port_rename(on_port_rename)
 	conn_man.on_xrun(on_xrun)
 	conn_man.on_shutdown(on_shutdown)
+
+	print('Current port list:')
+	print('==== INPUT PORTS ====')
+	list_ports(conn_man.output_ports())
+	print()
+	print('==== OUTPUT PORTS ====')
+	list_ports(conn_man.input_ports())
+	print()
+	print('==== CONNECTIONS =====')
+	for port in conn_man.output_ports():
+		print(port.name)
+		for tgt in conn_man.get_port_connections(port):
+			print(f'  {tgt.name}')
+	print()
 
 	print('Printing events at the console. Press Enter to quit...')
 	try:
