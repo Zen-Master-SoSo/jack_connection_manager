@@ -127,7 +127,7 @@ class _JackConnectionManager():
 	# ------------------------------
 	# Port / connection info funcs
 
-	def get_ports(self, flags = 0):
+	def get_ports(self, flags = 0, port_name_pattern = ''):
 		"""
 		Returns a list of JackPort objects which match the given flags (if any).
 		The available flags from jacklib/api.py:
@@ -143,7 +143,7 @@ class _JackConnectionManager():
 		return [
 			self.get_port_by_name(name) \
 			for name in c_char_p_p_to_list(
-				jacklib.get_ports(self.client, '', '', flags))
+				jacklib.get_ports(self.client, port_name_pattern, '', flags))
 		]
 
 	def get_port_by_name(self, name):
@@ -159,6 +159,9 @@ class _JackConnectionManager():
 		"""
 		ptr = jacklib.port_by_id(self.client, port_id)
 		return JackPort(ptr, jacklib.port_name(ptr))
+
+	def get_client_ports(self, client_name):
+		return self.get_ports(port_name_pattern = f'{client_name}:*')
 
 	def get_port_connections(self, port):
 		"""
