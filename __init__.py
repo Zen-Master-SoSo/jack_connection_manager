@@ -122,7 +122,15 @@ class _JackConnectionManager():
 			jacklib.client_close(self.client)
 
 	# ------------------------------
-	# Internal callback functions
+	# State
+
+	@property
+	def samplerate(self):
+		return jacklib.get_sample_rate(self.client)
+
+	@property
+	def buffer_size(self):
+		return jacklib.get_buffer_size(self.client)
 
 	# ------------------------------
 	# Port / connection info funcs
