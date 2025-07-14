@@ -66,8 +66,8 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
 	logging.basicConfig(
-		level=logging.DEBUG,
-		format="[%(filename)24s:%(lineno)3d] %(levelname)-8s %(message)s"
+		level = logging.DEBUG,
+		format = "[%(filename)24s:%(lineno)3d] %(levelname)-8s %(message)s"
 	)
 	app = QApplication([])
 	try:
