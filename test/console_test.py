@@ -46,6 +46,7 @@ def list_ports(ports):
 			if port.aliases \
 			else port.name
 
+
 def main():
 
 	logging.basicConfig(

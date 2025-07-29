@@ -20,6 +20,8 @@ from jacklib.helpers import get_jack_status_error_string
 from PyQt5.QtCore import QObject, pyqtSignal
 from good_logging import log_error
 
+__version__ = "1.0.0"
+
 
 class JackPort:
 
@@ -254,7 +256,6 @@ class _JackConnectionManager():
 		Disconnect the ports identified by their name.
 		"""
 		jacklib.disconnect(self.client, outport, inport)
-
 
 
 class JackConnectionManager(_JackConnectionManager):
