@@ -17,7 +17,6 @@ from queue import Queue
 import jacklib
 from jacklib.helpers import c_char_p_p_to_list
 from jacklib.helpers import get_jack_status_error_string
-from PyQt5.QtCore import QObject, pyqtSignal
 from good_logging import log_error
 
 __version__ = "1.0.1"
@@ -341,21 +340,21 @@ class JackConnectionManager(_JackConnectionManager):
 			except Exception as e:
 				log_error(e)
 
-	def _client_registration_callback(self, client_name, action, *args):
+	def _client_registration_callback(self, client_name, action, *_):
 		if self._cb_client_registration is not None:
 			try:
 				self._cb_client_registration(client_name.decode(jacklib.ENCODING, errors='ignore'), action)
 			except Exception as e:
 				log_error(e)
 
-	def _port_registration_callback(self, port_id, action, *args):
+	def _port_registration_callback(self, port_id, action, *_):
 		if self._cb_port_registration is not None:
 			try:
 				self._cb_port_registration(self.get_port_by_id(port_id), action)
 			except Exception as e:
 				log_error(e)
 
-	def _port_connect_callback(self, port_a_id, port_b_id, connect, *args):
+	def _port_connect_callback(self, port_a_id, port_b_id, connect, *_):
 		if self._cb_port_connect is not None:
 			try:
 				self._cb_port_connect(
@@ -366,7 +365,7 @@ class JackConnectionManager(_JackConnectionManager):
 			except Exception as e:
 				log_error(e)
 
-	def _port_rename_callback(self, port_id, old_name, new_name, *args):
+	def _port_rename_callback(self, port_id, old_name, new_name, *_):
 		if self._cb_port_rename is not None:
 			try:
 				self._cb_port_rename(
@@ -377,7 +376,7 @@ class JackConnectionManager(_JackConnectionManager):
 			except Exception as e:
 				log_error(e)
 
-	def _xrun_callback(self, arg):
+	def _xrun_callback(self, _):
 		self.xruns += 1
 		if self._cb_xrun is not None:
 			try:
@@ -386,7 +385,7 @@ class JackConnectionManager(_JackConnectionManager):
 				log_error(e)
 		return 0
 
-	def _shutdown_callback(self, *args):
+	def _shutdown_callback(self, *_):
 		if self._cb_shutdown is not None:
 			try:
 				self._cb_shutdown()

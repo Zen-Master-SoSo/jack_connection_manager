@@ -25,31 +25,31 @@ class QtJackConnectionManager(QObject, _JackConnectionManager):
 	def _error_callback(self, error):
 		self.sig_error.emit(error.decode(ENCODING, errors='ignore'))
 
-	def _client_registration_callback(self, client_name, action, *args):
+	def _client_registration_callback(self, client_name, action, *_):
 		self.sig_client_registration.emit(client_name.decode(ENCODING, errors='ignore'), action)
 
-	def _port_registration_callback(self, port_id, action, *args):
+	def _port_registration_callback(self, port_id, action, *_):
 		self.sig_port_registration.emit(self.get_port_by_id(port_id), action)
 
-	def _port_connect_callback(self, port_a_id, port_b_id, connect, *args):
+	def _port_connect_callback(self, port_a_id, port_b_id, connect, *_):
 		self.sig_port_connect.emit(
 			self.get_port_by_id(port_a_id),
 			self.get_port_by_id(port_b_id),
 			bool(connect)
 		)
 
-	def _port_rename_callback(self, port_id, old_name, new_name, *args):
+	def _port_rename_callback(self, port_id, old_name, new_name, *_):
 		self.sig_port_rename.emit(
 			self.get_port_by_id(port_id),
 			old_name.decode(ENCODING, errors='ignore') if old_name else 'NO_OLD_NAME',
 			new_name.decode(ENCODING, errors='ignore') if new_name else 'NO_NEW_NAME'
 		)
 
-	def _xrun_callback(self, arg):
+	def _xrun_callback(self, _):
 		self.xruns += 1
 		return 0
 
-	def _shutdown_callback(self, *args):
+	def _shutdown_callback(self, *_):
 		self.sig_shutdown.emit()
 		self.client = None
 
