@@ -19,7 +19,7 @@ from jacklib.helpers import c_char_p_p_to_list
 from jacklib.helpers import get_jack_status_error_string
 from good_logging import log_error
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 
 class JackPort:
