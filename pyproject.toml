@@ -9,12 +9,13 @@ readme = "README.md"
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"]
 dynamic = ["version", "description"]
-dependencies = ["jacklib", "PyQt5"]
+dependencies = ["pyjacklib"]
+
+[project.optional-dependencies]
+qt = ["PyQt5", "soso_qt_extras"]
 
 [project.urls]
 Home = "https://github.com/Zen-Master-SoSo/jack_connection_manager"
-
-[project.scripts]
 
 [bumpver]
 current_version = "1.0.0"

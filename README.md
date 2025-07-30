@@ -6,25 +6,29 @@ These differ from the JACK Client for Python (jack), in that it makes possible
 connecting and disconnecting ports which are not "owned" by a client created in
 your process.
 
-There is also a Qt version which emits signals when events of interest happen.
+There is also an (optionally installed) QtJackConnectionManager which emits
+signals when events of interest happen. In order to use the
+QtJackConnectionManager class, you must install with the "\[Qt\]" option, like so:
+
+	$ pip install jack_connection_manager[Qt]
 
 ### Using the plain (non-Qt) version
 
-The class is JackConnectionManager.
+Import JackConnectionManager:
 
 	from jack_connection_manager import JackConnectionManager
 
-You can create an instance using standard constructor syntax, or use it as a
-context manager.
+Create an instance using standard constructor syntax ...
 
 	self.conn_man = JackConnectionManager()
 
--- or --
+... or use it as a context manage:
 
 	with JackConnectionManager() as conn_man:
 
-
-The non-Qt version uses callbacks to inform your program when events of interest happen:
+The non-Qt version uses callbacks to inform your program when events of
+interest happen. Register your functions as callbacks using the "on_<event>"
+methods:
 
 	self.conn_man.on_client_registration(self.jack_client_reg)
 	self.conn_man.on_port_registration(self.jack_port_reg)
@@ -47,8 +51,13 @@ subscribe signals which are generated on events of interest:
 
 Refer to the help text to determine the function arguments to use in the callbacks or slots.
 
-## Ports
+## Help
 
-The JackPort class abstracts a Jack port. Seriously, from the python
-interpreter, import "jack_connection_manager" and do
-"help(jack_connection_manager)". The whole API should become transparent.
+Refer to the help for jack_connection_manager. From python:
+
+	>>> import jack_connection_manager
+	>>> help(jack_connection_manager)
+
+	>>> import jack_connection_manager.qt
+	>>> help(jack_connection_manager.qt)
+
