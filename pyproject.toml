@@ -18,7 +18,7 @@ qt = ["PyQt5", "soso_qt_extras"]
 Home = "https://github.com/Zen-Master-SoSo/jack_connection_manager"
 
 [bumpver]
-current_version = "1.0.0"
+current_version = "1.0.1"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "Bump version {old_version} -> {new_version}"
 commit = true

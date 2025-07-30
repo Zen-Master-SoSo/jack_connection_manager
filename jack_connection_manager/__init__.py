@@ -20,7 +20,7 @@ from jacklib.helpers import get_jack_status_error_string
 from PyQt5.QtCore import QObject, pyqtSignal
 from good_logging import log_error
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 class JackPort:
